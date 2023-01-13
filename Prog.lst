@@ -1,11 +1,11 @@
  0000    7A         LD A, D
  0001    87         ADD A
  0002    CE14       ADC 20
- 0004    D608       SuB 8 #Substrae 8 del acumulador
+ 0004    D608       SUB 8
  0006    DDB602     OR (IX+2)
- 0009    DE20       sbc 20H
- 000B    3C         INC a
+ 0009    DE20       SBC 20H
+ 000B    3C         INC A
  000C    05         DEC B
- 000D    27         DAa
+ 000D    27         DAA
  000E    ED46       IM 0
  0010    ED44       NEG

@@ -26,12 +26,15 @@ with open(ruta_archivo, 'r') as archivo:
         #print(linea)
         if linea == '':
             continue
-        instruction.append(linea)
-        coment = linea.find("#")
+        coment = linea.find(";")
         if coment != -1:
+            print(linea)
             linea = linea[:coment] + linea[len(linea):]
+            print(linea)
+        print(linea)
         linea = linea.upper()
         linea = linea.strip()
+        instruction.append(linea)
         #print(linea)
 
         division = linea.find(" ")
@@ -42,7 +45,7 @@ with open(ruta_archivo, 'r') as archivo:
             subins.append(linea)
 
         # print(subins)
-        print(subins[0])
+        # print(subins[0])
         # print(subins[1])
 
 
@@ -597,7 +600,7 @@ with open(ruta_archivo, 'r') as archivo:
 
         if len(instruccion_binario) > 0:
             ins_hex = utils.transformar(instruccion_binario)
-            print("appending: " + utils.generar_codigo(CL, ins_hex))
+            # print("appending: " + utils.generar_codigo(CL, ins_hex))
             codigo.append(utils.generar_codigo(CL, ins_hex))
             CL = CL + int(len(ins_hex)/2)
             if int(len(ins_hex)) > ins_large:
@@ -607,9 +610,9 @@ with open(ruta_archivo, 'r') as archivo:
 
     #Si el programa no encuentra errores finaliza y escribe el codigo
     if not bug_flag:
-        print(codigo)
-        print(len(codigo))
-        # print(instruction)
+        # print(codigo)
+        # print(len(codigo))
+        print(instruction)
         # print(len(instruction))
         arc_lst = open(archivo_lst,'w')
         ins_large = ins_large + 9
