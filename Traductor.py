@@ -8,31 +8,44 @@ import os
 ruta_archivo = filedialog.askopenfilename(
   filetypes=[('Archivos ASM', '*.asm')]
 )
-bug_flag = False
-codigo = []
-instruction = []
-no_linea = 0
-CL = 0
-ins_large = 0
+
 # Abrimos el archivo en modo lectura ('r') y lo almacenamos en una variable
 with open(ruta_archivo, 'r') as archivo:
+    etiquetas = {}
+    bug_flag = False
+    seg_pasada = {}
+    codigo = []
+    instruction = []
+    no_linea = 0
+    CL = 0
+    ins_large = 0
+    # Ins
     nombre, extension = os.path.splitext(ruta_archivo)
     archivo_lst = nombre + '.lst'
     for linea in archivo:
+        #Variables de apoyo
         instruccion_binario = ""
+        instruccion_no_tag = ""
         no_linea += 1
         subins = []
         linea = linea.strip()
-        #print(linea)
+        #En caso de que se encuentre una linea vacia la salta
         if linea == '':
             continue
         instruction.append(linea)
         coment = linea.find("#")
         if coment != -1:
             linea = linea[:coment] + linea[len(linea):]
+        etiStart = linea.find(":")
+        if etiStart != -1:
+            etiqueta = linea[:etiStart]
+            linea = linea[etiStart+1:]
+            linea = linea.strip()
+            etiquetas[etiqueta] = str(bin(CL)[2:])
+        #print(etiquetas)
+        #print(linea)
         linea = linea.upper()
         linea = linea.strip()
-        #print(linea)
 
         division = linea.find(" ")
         if not (division == -1):
@@ -40,9 +53,8 @@ with open(ruta_archivo, 'r') as archivo:
             subins.append(linea[division+1:])
         elif division == -1:
             subins.append(linea)
-
         # print(subins)
-        print(subins[0])
+        # print(subins[0])
         # print(subins[1])
 
 
@@ -423,10 +435,6 @@ with open(ruta_archivo, 'r') as archivo:
                 elif registro[1] == "IY":
                     instruccion_binario = "1111110111111001"
 
-            else:
-                print("Error en la linea {}".format(no_linea))
-                bug_flag = True
-                break
         
         #PUSH qq, PUSH IX, PUSH IY
         elif subins[0] == "PUSH":
@@ -467,7 +475,7 @@ with open(ruta_archivo, 'r') as archivo:
         #Tabla A-4. El grupo aritmetico y logico de 8 bits
                 
         #ADD hasta CP
-        elif subins[0] in Z80Table.ins_TA4 and len(subins) == 2:
+        elif subins[0] in Z80Table.ins_TA4 and (subins[1] in Z80Table.registros or subins[1] == "(HL)" or re.match(r'\(IX\+[0-9]{1,3}\)',subins[1]) or re.match(r'\(IX\+[0-9A-F]{1,2}H\)',subins[1]) or re.match(r'\(IY\+[0-9]{1,3}\)',subins[1]) or re.match(r'\(IY\+[0-9A-F]{1,2}H\)',subins[1])):
             instr = subins[0]
             #ADD r
             if subins[1] in Z80Table.registros:
@@ -527,7 +535,7 @@ with open(ruta_archivo, 'r') as archivo:
                 instruccion_binario = instruccion_binario.replace("n",data)
  
         #INC y DEC
-        elif subins[0] == "INC" or subins[0] == "DEC":
+        elif (subins[0] == "INC" or subins[0] == "DEC") and (subins[1] != "IX" and subins[1] != "IY" and not(subins[1] in Z80Table.reg_par)):
             idc = {"INC":"100","DEC":"101"} 
             instr = idc[subins[0]]
             #INC r
@@ -586,8 +594,178 @@ with open(ruta_archivo, 'r') as archivo:
                     instruccion_binario = instruccion_binario.replace("x","011")
 
         #Tabla A-6. Grupo aritmetico y de control de la CPU de aplicacion general
-        elif subins[0] in Z80Table.ins_TA4 and len(subins) == 3:
-            A=1
+        elif subins[0] in Z80Table.ins_TA6 and len(subins) == 2:
+            coma = subins[1].find(",")
+            if subins[0] == "INC" or subins[0] == "DEC":
+                if subins[1] in Z80Table.reg_par:
+                    instruccion_binario = Z80Table.tA6[subins[0]]
+                    instruccion_binario = instruccion_binario.replace("ss",Z80Table.reg_par[subins[1]])
+                elif subins[1] == "IX" or subins[1] == "IY":
+                    inst = subins[0] + subins[1]
+                    instruccion_binario = Z80Table.tA6[inst]
+            elif coma != -1:
+                reg = subins[1]
+                regs = []
+                regs.append(reg[:coma])
+                regs.append(reg[coma+1:])
+                inst = subins[0] + regs[0]
+                if inst in Z80Table.tA6:
+                    instruccion_binario = Z80Table.tA6[inst]
+                    if regs[1] in Z80Table.reg_par:
+                        instruccion_binario = instruccion_binario.replace("ss",Z80Table.reg_par[regs[1]])
+
+        #Tabla A-7. Grupo de rotacion y desplazamiento
+        elif subins[0] in Z80Table.ins_TA7 or subins[0] in Z80Table.ins_TA7_P2:
+            inst = subins[0]
+            if inst in Z80Table.ins_TA7_P2:
+                instruccion_binario = Z80Table.ins_TA7_P2[inst]
+            elif inst in Z80Table.ins_TA7:
+                if subins[1] in Z80Table.registros:
+                    instruccion_binario = Z80Table.tA7["reg"]
+                    instruccion_binario = instruccion_binario.replace("r",Z80Table.registros[subins[1]])
+                    instruccion_binario = instruccion_binario.replace("x",Z80Table.ins_TA7[subins[0]])
+
+                elif subins[1] == "(HL)":
+                    instruccion_binario = Z80Table.tA7["(HL)"]
+                    instruccion_binario = instruccion_binario.replace("x",Z80Table.ins_TA7[subins[0]])
+
+                elif re.match(r'\(IX\+[0-9]{1,3}\)',subins[1]) or re.match(r'\(IX\+[0-9A-F]{1,3}H\)',subins[1]):
+                    data = subins[1]
+                    data = data[4:]
+                    data = data[:-1]
+                    if data.isdigit():
+                        if int(data) < 256:
+                            data = str(bin(int(data, 10))[2:])
+                            data = data.zfill(8)
+                            instruccion_binario = Z80Table.tA7["(IX+d)"]
+                            instruccion_binario = instruccion_binario.replace("x",Z80Table.ins_TA7[subins[0]])
+                            instruccion_binario = instruccion_binario.replace("d",data)
+                    elif data[-1] == "H":
+                        data = data.replace("H","")
+                        if int(data,16) < int('FF',16):
+                            data = str(bin(int(data, 16))[2:])
+                            data = data.zfill(8)
+                            instruccion_binario = Z80Table.tA7["(IX+d)"]
+                            instruccion_binario = instruccion_binario.replace("x",Z80Table.ins_TA7[subins[0]])
+                            instruccion_binario = instruccion_binario.replace("d",data)
+
+                elif re.match(r'\(IY\+[0-9]{1,3}\)',subins[1]) or re.match(r'\(IY\+[0-9A-F]{1,3}H\)',subins[1]):
+                    data = subins[1]
+                    data = data[4:]
+                    data = data[:-1]
+                    if data.isdigit():
+                        if int(data) < 256:
+                            data = str(bin(int(data, 10))[2:])
+                            data = data.zfill(8)
+                            instruccion_binario = Z80Table.tA7["(IY+d)"]
+                            instruccion_binario = instruccion_binario.replace("x",Z80Table.ins_TA7[subins[0]])
+                            instruccion_binario = instruccion_binario.replace("d",data)
+                    elif data[-1] == "H":
+                        data = data.replace("H","")
+                        if int(data,16) < int('FF',16):
+                            data = str(bin(int(data, 16))[2:])
+                            data = data.zfill(8)
+                            instruccion_binario = Z80Table.tA7["(IY+d)"]
+                            instruccion_binario = instruccion_binario.replace("x",Z80Table.ins_TA7[subins[0]])
+                            instruccion_binario = instruccion_binario.replace("d",data)
+
+        #Tabla A-8. Grupo BIT, SET Y RESET
+        elif subins[0] in Z80Table.t8_ins:
+            subins[1].find(",")
+            regs = subins[1].split(",")
+            if regs[0].isdigit:
+                if int(regs[0]) < 8:
+                    if regs[1] in Z80Table.registros:
+                        num_bit = str(bin(int(regs[0],10))[2:])
+                        instruccion_binario = Z80Table.tA8["reg"]
+                        instruccion_binario = instruccion_binario.replace("x",Z80Table.t8_ins[subins[0]])
+                        instruccion_binario = instruccion_binario.replace("b",num_bit)
+                        instruccion_binario = instruccion_binario.replace("r",Z80Table.registros[regs[1]])
+                    elif regs[1] == "(HL)":
+                        num_bit = str(bin(int(regs[0],10))[2:])
+                        instruccion_binario = Z80Table.tA8["(HL)"]
+                        instruccion_binario = instruccion_binario.replace("x",Z80Table.t8_ins[subins[0]])
+                        instruccion_binario = instruccion_binario.replace("b",num_bit)
+                    elif re.match(r'\(IX\+[0-9]{1,3}\)',regs[1]) or re.match(r'\(IX\+[0-9A-F]{1,3}H\)',regs[1]):
+                        data = regs[1]
+                        data = data[4:]
+                        data = data[:-1]
+                        if data.isdigit():
+                            if int(data) < 256:
+                                data = str(bin(int(data, 10))[2:])
+                                data = data.zfill(8)
+                                instruccion_binario = Z80Table.tA8["(IX+d)"]
+                                instruccion_binario = instruccion_binario.replace("x",Z80Table.t8_ins[subins[0]])
+                                instruccion_binario = instruccion_binario.replace("b",num_bit)
+                                instruccion_binario = instruccion_binario.replace("d",data)
+                        elif data[-1] == "H":
+                            data = data.replace("H","")
+                            if int(data,16) < int('FF',16):
+                                data = str(bin(int(data, 16))[2:])
+                                data = data.zfill(8)
+                                instruccion_binario = Z80Table.tA8["(IX+d)"]
+                                instruccion_binario = instruccion_binario.replace("x",Z80Table.t8_ins[subins[0]])
+                                instruccion_binario = instruccion_binario.replace("b",num_bit)
+                                instruccion_binario = instruccion_binario.replace("d",data)
+                    elif re.match(r'\(IY\+[0-9]{1,3}\)',regs[1]) or re.match(r'\(IY\+[0-9A-F]{1,3}H\)',regs[1]):
+                        data = regs[1]
+                        data = data[4:]
+                        data = data[:-1]
+                        if data.isdigit():
+                            if int(data) < 256:
+                                data = str(bin(int(data, 10))[2:])
+                                data = data.zfill(8)
+                                instruccion_binario = Z80Table.tA8["(IY+d)"]
+                                instruccion_binario = instruccion_binario.replace("x",Z80Table.t8_ins[subins[0]])
+                                instruccion_binario = instruccion_binario.replace("b",num_bit)
+                                instruccion_binario = instruccion_binario.replace("d",data)
+                        elif data[-1] == "H":
+                            data = data.replace("H","")
+                            if int(data,16) < int('FF',16):
+                                data = str(bin(int(data, 16))[2:])
+                                data = data.zfill(8)
+                                instruccion_binario = Z80Table.tA8["(IY+d)"]
+                                instruccion_binario = instruccion_binario.replace("x",Z80Table.t8_ins[subins[0]])
+                                instruccion_binario = instruccion_binario.replace("b",num_bit)
+                                instruccion_binario = instruccion_binario.replace("d",data)
+
+        #Tabla A-9. Grupo de JUMP (salto)
+        elif subins[0] == "JP":
+            coma = subins[1].find(",")
+            if subins[1] in Z80Table.extra_TA9: #JP (HL|IX|IY)
+                inst = subins[0] + subins[1]
+                instruccion_binario = Z80Table.tA9[inst]
+
+            elif coma != -1:
+                regs = subins[1].split(coma)
+                if regs[0] in Z80Table.tcc and regs[1] in etiquetas:
+                    instruccion_binario = Z80Table.tA9["JPC"]
+                    direct = etiquetas[regs[1]]
+                    direct = direct.zfill(16)
+                    direct = direct[len(direct)//2:] + direct[:len(direct)//2]
+                    instruccion_binario = instruccion_binario.replace("cc",Z80Table.tcc[regs[0]])
+                    instruccion_binario = instruccion_binario.replace("nn",direct)
+                else:
+                    if regs[0] in Z80Table.tcc:
+                        instruccion_no_tag = Z80Table.tA9["JPC"]
+                        instruccion_no_tag = instruccion_no_tag.replace("cc",Z80Table.tcc[regs[0]])
+                        instruccion_no_tag = instruccion_no_tag.replace("nn",regs[1])
+                        seg_pasada[no_linea] = regs[1]
+
+            elif coma == -1:
+                if subins[1] in etiquetas:
+                    instruccion_binario = Z80Table.tA9["JPN"]
+                    direct = etiquetas[subins[1]]
+                    direct = direct.zfill(16)
+                    direct = direct[len(direct)//2:] + direct[:len(direct)//2]
+                    instruccion_binario = instruccion_binario.replace("nn",direct)
+                else:
+                    print(subins[1])
+                    instruccion_no_tag = Z80Table.tA9["JPN"]
+                    instruccion_no_tag = instruccion_no_tag.replace("nn",subins[1])
+                    seg_pasada[no_linea] = subins[1]
+                    
+
 
         #En caso de encontrar un error indica en que linea y finaliza
         else:
@@ -597,31 +775,40 @@ with open(ruta_archivo, 'r') as archivo:
 
         if len(instruccion_binario) > 0:
             ins_hex = utils.transformar(instruccion_binario)
-            print("appending: " + utils.generar_codigo(CL, ins_hex))
+            #print("appending: " + utils.generar_codigo(CL, ins_hex))
             codigo.append(utils.generar_codigo(CL, ins_hex))
             CL = CL + int(len(ins_hex)/2)
             if int(len(ins_hex)) > ins_large:
                 ins_large = int(len(ins_hex))
-        #Tabla A-3. Grupo de intercambio y transferencia y busqueda de bloques
+        elif len(instruccion_no_tag) > 1:
+            codigo.append(instruccion_no_tag)
+        else:
+            bug_flag = True
+            break
 
 
-    #Si el programa no encuentra errores finaliza y escribe el codigo
+    print(etiquetas)
+    #print(codigo)
     if not bug_flag:
-        print(codigo)
-        print(len(codigo))
-        # print(instruction)
-        # print(len(instruction))
+        a=0
+        for line in seg_pasada:
+            print(line)
+            linea = codigo[line-1]
+            print(linea)
+            reemplazo = linea.find("")
+
+    #print(codigo)
+    #Si el programa no encontro errores finaliza y escribe el codigo
+    #print(bug_flag)
+    if not bug_flag:
+        #print(codigo)
+        #print(len(codigo))
         arc_lst = open(archivo_lst,'w')
         ins_large = ins_large + 9
         lineas_escribir = len(codigo)
         escritura = ""
         for i in range(0, lineas_escribir, 1):
-            #arc_lst.write(" " + codigo[i].ljust(ins_large) + "    " + instruction[i] + "\n")
-            # print(i)
             cadena_arc = " " + codigo[i].ljust(ins_large) + "    " + instruction[i] + "\n"
             escritura += cadena_arc
         arc_lst.write(escritura)
         arc_lst.close()
-    # else:
-    #     print("Error en la linea {}".format(no_linea))
-        
