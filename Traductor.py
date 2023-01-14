@@ -39,6 +39,7 @@ with open(ruta_archivo, 'r') as archivo:
         etiStart = linea.find(":")
         if etiStart != -1:
             etiqueta = linea[:etiStart]
+            etiqueta = etiqueta.upper()
             linea = linea[etiStart+1:]
             linea = linea.strip()
             etiquetas[etiqueta] = str(bin(CL)[2:])
@@ -687,6 +688,7 @@ with open(ruta_archivo, 'r') as archivo:
                         instruccion_binario = instruccion_binario.replace("x",Z80Table.t8_ins[subins[0]])
                         instruccion_binario = instruccion_binario.replace("b",num_bit)
                     elif re.match(r'\(IX\+[0-9]{1,3}\)',regs[1]) or re.match(r'\(IX\+[0-9A-F]{1,3}H\)',regs[1]):
+                        num_bit = str(bin(int(regs[0],10))[2:])
                         data = regs[1]
                         data = data[4:]
                         data = data[:-1]
