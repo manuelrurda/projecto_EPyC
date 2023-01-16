@@ -54,10 +54,6 @@ with open(ruta_archivo, 'r') as archivo:
             subins.append(linea[division+1:])
         elif division == -1:
             subins.append(linea)
-        # print(subins)
-        # print(subins[0])
-        # print(subins[1])
-
 
         #Tabla A-1 y A-2. Grupo de carga de 8 y 16 bits
         #Separa la instruccion de los operandos
@@ -733,6 +729,7 @@ with open(ruta_archivo, 'r') as archivo:
 
         #Tabla A-9. Grupo de JUMP (salto)
         elif subins[0] == "JP":
+            print(subins)
             coma = subins[1].find(",")
             if subins[1] in Z80Table.extra_TA9: #JP (HL|IX|IY)
                 inst = subins[0] + subins[1]
@@ -741,10 +738,10 @@ with open(ruta_archivo, 'r') as archivo:
             elif coma != -1:
                 regs = subins[1].split(coma)
                 if regs[0] in Z80Table.tcc and regs[1] in etiquetas:
-                    instruccion_binario = Z80Table.tA9["JPC"]
                     direct = etiquetas[regs[1]]
                     direct = direct.zfill(16)
                     direct = direct[len(direct)//2:] + direct[:len(direct)//2]
+                    instruccion_binario = Z80Table.tA9["JPC"]
                     instruccion_binario = instruccion_binario.replace("cc",Z80Table.tcc[regs[0]])
                     instruccion_binario = instruccion_binario.replace("nn",direct)
                 else:
@@ -777,7 +774,7 @@ with open(ruta_archivo, 'r') as archivo:
 
         if len(instruccion_binario) > 0:
             ins_hex = utils.transformar(instruccion_binario)
-            #print("appending: " + utils.generar_codigo(CL, ins_hex))
+
             codigo.append(utils.generar_codigo(CL, ins_hex))
             CL = CL + int(len(ins_hex)/2)
             if int(len(ins_hex)) > ins_large:
@@ -789,7 +786,7 @@ with open(ruta_archivo, 'r') as archivo:
             break
 
 
-    print(etiquetas)
+    # print(etiquetas)
     #print(codigo)
     if not bug_flag:
         a=0
