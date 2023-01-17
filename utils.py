@@ -2,7 +2,7 @@ codigo_LST = []
 codigo_HEX = ""
 
 # Recibe la instruccion para almacenarla
-def generar_codigo(_contador_localidades, instruccion_hex):
+def generar_codigo(_contador_localidades:int, instruccion_hex:str):
     contador_loc = hex(int(_contador_localidades))[2:].zfill(4)
     return contador_loc.upper()+"    "+str(instruccion_hex).upper()
 
