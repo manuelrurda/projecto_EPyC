@@ -1,0 +1,7 @@
+ 0000    011400     LD BC,20
+ 0003    D9         EXX # Comentario
+ 0004    09         eti1: ADD HL,BC
+ 0005    C30400     JP eti1
+
+Tabla de simbolos
+0004    ETI1
