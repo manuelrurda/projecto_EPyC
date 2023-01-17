@@ -11,6 +11,8 @@ def on_button_click():
     filetypes=[('Archivos ASM', '*.asm')]
     )
 
+    nombre, extension = os.path.splitext(ruta_archivo)
+
     # Abrimos el archivo en modo lectura ('r') y lo almacenamos en una variable
     with open(ruta_archivo, 'r') as archivo:
         etiquetas = {}
@@ -21,7 +23,6 @@ def on_button_click():
         no_linea = 0
         CL = 0
         ins_large = 0
-        nombre, extension = os.path.splitext(ruta_archivo)
         archivo_lst = nombre + '.lst'
         #Lee cada linea del archivo
         for linea in archivo:
@@ -938,9 +939,6 @@ def on_button_click():
             else:
                 bug_flag = True
                 break
-        
-        print(codigo)
-
 
         #Manejo de etiquetas
         if not bug_flag:
@@ -973,7 +971,6 @@ def on_button_click():
                     inst_hex = utils.transformar(inst_filled)
                     codigo[line-1] = contador_loca.upper() + "    " + inst_hex.upper()
 
-                    
         #Si el programa no encontro errores finaliza y escribe el codigo
         if not bug_flag:
             arc_lst = open(archivo_lst,'w')
@@ -992,13 +989,84 @@ def on_button_click():
                 cont_tag = cont_tag.zfill(4)
                 writing = cont_tag + "    "+linea + "\n"
                 escritura += writing 
-
             arc_lst.write(escritura)
             arc_lst.close()
+            generar_codigo_hex(codigo, nombre)
             respuesta = "Traduccion exitosa"
             eti_respuesta.config(text=respuesta)
             ventana.after(3000,resetear_etiqueta)
 
+
+# genera el codigo hex de la forma :llaaaatt[dd...]cc
+# donde:
+# : es el signo dos puntos que comienza cada registro Intel HEX.
+# ll es el campo de longitud de registro que representa el número de bytes de datos (dd) en el registro.
+# aaaa es el campo de dirección que representa la dirección de inicio para los datos subsiguientes en el registro.
+# tt es el campo que representa el tipo de registro HEX, que puede ser uno de los siguientes:
+# 00 - registro de datos
+# 01 - registro de fin de archivo
+# 02 - registro de dirección de segmento extendido
+# 04 - registro de dirección lineal extendida
+# 05 - registro de inicio de dirección lineal (solo MDK-ARM)
+# dd es un campo de datos que representa un byte de datos. Un registro puede tener varios bytes de datos. El número de bytes de datos en el registro debe coincidir con el número especificado en el campo ll.
+# cc es el campo de verificación que representa el código de verificación del registro. El código de verificación se calcula sumando los valores de todos los pares de dígitos hexadecimales en el registro módulo 256 y tomando el complemento a dos.
+
+def generar_codigo_hex(codigo:list, nombre_archivo:str):
+    LOCALIDAD_INICIAL = "0000"
+
+    registros_datos = []
+    localidad_origen = LOCALIDAD_INICIAL
+
+    data = ""
+    for instruccion in codigo:
+        data += instruccion.split()[1]
+    contador_pares_hex = len(data)//2
+
+    for i in range(0, len(data), 32):
+        registro = data[i:i+32] # cacho de 16 bytes hex
+        contador_pares_hex = len(registro)//2
+        contador_pares_hex_str = str(hex(contador_pares_hex))
+        contador_pares_hex_str = contador_pares_hex_str[2:]
+        contador_pares_hex_str_justificado = contador_pares_hex_str.rjust(2, '0')
+        registro = f'{contador_pares_hex_str_justificado}{localidad_origen}00{registro}'
+        registro = ':' + registro + checksum(registro)
+        registros_datos.append(registro)
+
+        localidad_origen = contador_pares_hex_str.rjust(4, '0')
+
+    generar_archivo_hex(registros_datos, nombre_archivo)
+
+def generar_archivo_hex(registros_datos:list, nombre_archivo:str):
+    REGISTRO_EOF = ":00000001FF"
+
+    archivo_hex = open(nombre_archivo + ".hex", 'w')
+
+    for registro in registros_datos:
+        archivo_hex.write(registro+'\n')
+    
+    archivo_hex.write(REGISTRO_EOF+'\n')
+    archivo_hex.close()
+
+
+def checksum(data:str):
+    checksum = 0
+    for par_hex in range(0, len(data), 2):
+        checksum += int(data[par_hex:par_hex+2], 16)
+    
+    checksum_binary = bin((checksum%256))
+    checksum_binary = checksum_binary[2:]
+
+    return comp_dos(checksum_binary).upper()
+
+def comp_dos(binary:str):
+    comp_uno = ""
+    for i in range(len(binary)):
+        if binary[i] == '0': comp_uno += '1'
+        else: comp_uno += '0'
+
+    comp_dos = int(comp_uno, 2) + 1
+    comp_dos_hex = hex(comp_dos)
+    return comp_dos_hex[2:]
 
 def resetear_etiqueta():
     eti_respuesta.config(text="")
