@@ -11,8 +11,6 @@ def on_button_click():
     filetypes=[('Archivos ASM', '*.asm')]
     )
 
-    nombre, extension = os.path.splitext(ruta_archivo)
-
     # Abrimos el archivo en modo lectura ('r') y lo almacenamos en una variable
     with open(ruta_archivo, 'r') as archivo:
         etiquetas = {}
@@ -23,23 +21,23 @@ def on_button_click():
         no_linea = 0
         CL = 0
         ins_large = 0
+        nombre, extension = os.path.splitext(ruta_archivo)
         archivo_lst = nombre + '.lst'
         #Lee cada linea del archivo
         for linea in archivo:
             #Variables de apoyo
             instruccion_binario = ""
             instruccion_no_tag = ""
-            no_linea += 1
+            
             subins = []
             linea = linea.strip()
             #En caso de que se encuentre una linea vacia la salta
             if linea == '':
+                #no_linea += 1
                 continue
-            instruction.append(linea)
-            #Encontrar comentarios
-            coment = linea.find(";")
-            if coment != -1:
-                linea = linea[:coment] + linea[len(linea):]
+            else:
+                no_linea += 1
+
             #Encontrar etiquetas
             etiStart = linea.find(":")
             if etiStart != -1:
@@ -51,6 +49,13 @@ def on_button_click():
                 etiquetas[etiqueta] = str(bin(CL)[2:])
             linea = linea.upper()
             linea = linea.strip()
+
+            instruction.append(linea)
+            #Encontrar comentarios
+            coment = linea.find(";")
+            if coment != -1:
+                linea = linea[:coment] + linea[len(linea):]
+            
             #Separa la instruccion 
             division = linea.find(" ")
             if not (division == -1):
@@ -366,7 +371,7 @@ def on_button_click():
                     regg = registro[0]
                     regg = regg[1:-1]
                     if regg[-1] == "H":
-                        regg = regg.replace("H")
+                        regg = regg.replace("H","")
                         if len(regg) < 5:
                             nn = str(bin(int(regg, 16))[2:])
                             nn = nn.zfill(16)
@@ -751,7 +756,7 @@ def on_button_click():
                     else:
                         if regs[0] in Z80Table.tcc:
                             instruccion_no_tag = Z80Table.tA9["JPC"]
-                            tagged = "P" + regs[1]
+                            tagged = "-" + regs[1]
                             instruccion_no_tag = instruccion_no_tag.replace("cc",Z80Table.tcc[regs[0]])
                             instruccion_no_tag = instruccion_no_tag.replace("nn",tagged)
                             contador_loc = hex(int(CL))[2:].zfill(4)
@@ -770,7 +775,7 @@ def on_button_click():
                         instruccion_binario = instruccion_binario.replace("nn",direct)
                     else:
                         instruccion_no_tag = Z80Table.tA9["JPN"]
-                        tagged = "P" + subins[1]
+                        tagged = "-" + subins[1]
                         instruccion_no_tag = instruccion_no_tag.replace("nn",tagged)
                         contador_loc = hex(int(CL))[2:].zfill(4)
                         instruccion_no_tag = contador_loc +"|"+ instruccion_no_tag
@@ -801,7 +806,7 @@ def on_button_click():
 
                     else:
                         instruccion_no_tag = Z80Table.tA9["JR"]
-                        tagged = "R" + subins[1]
+                        tagged = "$" + subins[1]
                         instruccion_no_tag = instruccion_no_tag.replace("e", tagged)
                         contador_loc = hex(int(CL))[2:].zfill(4)
                         instruccion_no_tag = contador_loc +"|"+ instruccion_no_tag
@@ -830,7 +835,7 @@ def on_button_click():
                         else:
                             ins = subins[0] + regis[0]
                             instruccion_no_tag = Z80Table.tA9[ins]
-                            tagged = "R" + regis[1]
+                            tagged = "$" + regis[1]
                             instruccion_no_tag = instruccion_no_tag.replace("e", tagged)
                             contador_loc = hex(int(CL))[2:].zfill(4)
                             instruccion_no_tag = contador_loc +"|"+ instruccion_no_tag
@@ -854,7 +859,7 @@ def on_button_click():
                     instruccion_binario = instruccion_binario.replace("e",complemento)
                 else:
                     instruccion_no_tag = Z80Table.tA9["DJNZ"]
-                    tagged = "R" + data[1]
+                    tagged = "$" + data[1]
                     instruccion_no_tag = instruccion_no_tag.replace("e", tagged)
                     contador_loc = hex(int(CL))[2:].zfill(4)
                     instruccion_no_tag = contador_loc +"|"+ instruccion_no_tag
@@ -874,7 +879,7 @@ def on_button_click():
                         instruccion_binario = instruccion_binario.replace("nn",direct)
                     else:
                         instruccion_no_tag = Z80Table.tA10["CALLN"]
-                        tagged = "P" + subins[1]
+                        tagged = "-" + subins[1]
                         instruccion_no_tag = instruccion_no_tag.replace("nn",tagged)
                         contador_loc = hex(int(CL))[2:].zfill(4)
                         instruccion_no_tag = contador_loc +"|"+ instruccion_no_tag
@@ -894,7 +899,7 @@ def on_button_click():
                     else:
                         if regs[0] in Z80Table.tcc:
                             instruccion_no_tag = Z80Table.tA10["CALLC"]
-                            tagged = "P" + regs[1]
+                            tagged = "-" + regs[1]
                             instruccion_no_tag = instruccion_no_tag.replace("cc",Z80Table.tcc[regs[0]])
                             instruccion_no_tag = instruccion_no_tag.replace("nn",tagged)
                             contador_loc = hex(int(CL))[2:].zfill(4)
@@ -940,18 +945,20 @@ def on_button_click():
                 bug_flag = True
                 break
 
+
+
         #Manejo de etiquetas
         if not bug_flag:
             for line in seg_pasada:
-                linea = codigo[line-1]
-                reemplazoP = linea.find("P")
-                reemplazoR = linea.find("R")
+                lineT = codigo[line-1]
+                reemplazoP = lineT.find("-")
+                reemplazoR = lineT.find("$")
                 #JP
                 if reemplazoP != -1:
-                    separador = linea.find("|")
-                    contador_loca = linea[:separador]
-                    inst_tag = linea[separador+1:reemplazoP]
-                    tag_nm = linea[reemplazoP+1:]
+                    separador = lineT.find("|")
+                    contador_loca = lineT[:separador]
+                    inst_tag = lineT[separador+1:reemplazoP]
+                    tag_nm = lineT[reemplazoP+1:]
                     tag_cl = etiquetas[tag_nm]
                     tag_cl = tag_cl.zfill(16)
                     tag_cl = tag_cl[len(tag_cl)//2:] + tag_cl[:len(tag_cl)//2]
@@ -960,10 +967,10 @@ def on_button_click():
                     codigo[line-1] = contador_loca.upper() + "    " + inst_hex.upper()
                 #JR
                 elif reemplazoR != -1:
-                    separador = linea.find("|")
-                    contador_loca = linea[:separador]
-                    inst_tag = linea[separador+1:reemplazoR]
-                    tag_nm = linea[reemplazoR+1:]
+                    separador = lineT.find("|")
+                    contador_loca = lineT[:separador]
+                    inst_tag = lineT[separador+1:reemplazoR]
+                    tag_nm = lineT[reemplazoR+1:]
                     tag_cl = etiquetas[tag_nm]
                     dista = int(tag_cl, 2) - int(contador_loca, 16) - 2
                     dista = (str(bin(dista)[2:])).zfill(8)
@@ -971,6 +978,7 @@ def on_button_click():
                     inst_hex = utils.transformar(inst_filled)
                     codigo[line-1] = contador_loca.upper() + "    " + inst_hex.upper()
 
+                    
         #Si el programa no encontro errores finaliza y escribe el codigo
         if not bug_flag:
             arc_lst = open(archivo_lst,'w')
@@ -980,93 +988,23 @@ def on_button_click():
             for i in range(0, lineas_escribir, 1):
                 cadena_arc = " " + codigo[i].ljust(ins_large) + "    " + instruction[i] + "\n"
                 escritura += cadena_arc
-            escritura += "\nTabla de simbolos\n"
-            for linea in etiquetas:
-                cont_tag = etiquetas[linea]
-                cont_tag = format(int(cont_tag, 2), "x")
-                if len(cont_tag)%2 != 0:
-                    cont_tag = "0" + cont_tag
-                cont_tag = cont_tag.zfill(4)
-                writing = cont_tag + "    "+linea + "\n"
-                escritura += writing 
+            if len(etiquetas) > 0:
+                escritura += "\nTabla de simbolos\n"
+                for linea in etiquetas:
+                    cont_tag = etiquetas[linea]
+                    cont_tag = format(int(cont_tag, 2), "x")
+                    if len(cont_tag)%2 != 0:
+                        cont_tag = "0" + cont_tag
+                    cont_tag = cont_tag.zfill(4)
+                    writing = cont_tag.upper() + "    "+linea + "\n"
+                    escritura += writing 
+
             arc_lst.write(escritura)
             arc_lst.close()
-            generar_codigo_hex(codigo, nombre)
             respuesta = "Traduccion exitosa"
             eti_respuesta.config(text=respuesta)
             ventana.after(3000,resetear_etiqueta)
 
-
-# genera el codigo hex de la forma :llaaaatt[dd...]cc
-# donde:
-# : es el signo dos puntos que comienza cada registro Intel HEX.
-# ll es el campo de longitud de registro que representa el número de bytes de datos (dd) en el registro.
-# aaaa es el campo de dirección que representa la dirección de inicio para los datos subsiguientes en el registro.
-# tt es el campo que representa el tipo de registro HEX, que puede ser uno de los siguientes:
-# 00 - registro de datos
-# 01 - registro de fin de archivo
-# 02 - registro de dirección de segmento extendido
-# 04 - registro de dirección lineal extendida
-# 05 - registro de inicio de dirección lineal (solo MDK-ARM)
-# dd es un campo de datos que representa un byte de datos. Un registro puede tener varios bytes de datos. El número de bytes de datos en el registro debe coincidir con el número especificado en el campo ll.
-# cc es el campo de verificación que representa el código de verificación del registro. El código de verificación se calcula sumando los valores de todos los pares de dígitos hexadecimales en el registro módulo 256 y tomando el complemento a dos.
-
-def generar_codigo_hex(codigo:list, nombre_archivo:str):
-    LOCALIDAD_INICIAL = "0000"
-
-    registros_datos = []
-    localidad_origen = LOCALIDAD_INICIAL
-
-    data = ""
-    for instruccion in codigo:
-        data += instruccion.split()[1]
-    contador_pares_hex = len(data)//2
-
-    for i in range(0, len(data), 32):
-        registro = data[i:i+32] # cacho de 16 bytes hex
-        contador_pares_hex = len(registro)//2
-        contador_pares_hex_str = str(hex(contador_pares_hex))
-        contador_pares_hex_str = contador_pares_hex_str[2:]
-        contador_pares_hex_str_justificado = contador_pares_hex_str.rjust(2, '0')
-        registro = f'{contador_pares_hex_str_justificado}{localidad_origen}00{registro}'
-        registro = ':' + registro + checksum(registro)
-        registros_datos.append(registro)
-
-        localidad_origen = contador_pares_hex_str.rjust(4, '0')
-
-    generar_archivo_hex(registros_datos, nombre_archivo)
-
-def generar_archivo_hex(registros_datos:list, nombre_archivo:str):
-    REGISTRO_EOF = ":00000001FF"
-
-    archivo_hex = open(nombre_archivo + ".hex", 'w')
-
-    for registro in registros_datos:
-        archivo_hex.write(registro+'\n')
-    
-    archivo_hex.write(REGISTRO_EOF+'\n')
-    archivo_hex.close()
-
-
-def checksum(data:str):
-    checksum = 0
-    for par_hex in range(0, len(data), 2):
-        checksum += int(data[par_hex:par_hex+2], 16)
-    
-    checksum_binary = bin((checksum%256))
-    checksum_binary = checksum_binary[2:]
-
-    return comp_dos(checksum_binary).upper()
-
-def comp_dos(binary:str):
-    comp_uno = ""
-    for i in range(len(binary)):
-        if binary[i] == '0': comp_uno += '1'
-        else: comp_uno += '0'
-
-    comp_dos = int(comp_uno, 2) + 1
-    comp_dos_hex = hex(comp_dos)
-    return comp_dos_hex[2:]
 
 def resetear_etiqueta():
     eti_respuesta.config(text="")
